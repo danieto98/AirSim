@@ -42,6 +42,7 @@ namespace airlib
         static constexpr char const* kSimModeTypeMultirotor = "Multirotor";
         static constexpr char const* kSimModeTypeCar = "Car";
         static constexpr char const* kSimModeTypeComputerVision = "ComputerVision";
+	static constexpr char const* kSimModeTypeBoth = "Both";
 
         struct SubwindowSetting
         {
@@ -565,7 +566,7 @@ namespace airlib
 
             physics_engine_name = settings_json.getString("PhysicsEngineName", "");
             if (physics_engine_name == "") {
-                if (simmode_name == kSimModeTypeMultirotor)
+                if (simmode_name == kSimModeTypeMultirotor || simmode_name == kSimModeTypeBoth)
                     physics_engine_name = "FastPhysicsEngine";
                 else
                     physics_engine_name = "PhysX"; //this value is only informational for now
@@ -825,7 +826,9 @@ namespace airlib
 
             //NOTE: Do not set defaults for vehicle type here. If you do then make sure
             //to sync code in createVehicleSetting() as well.
-            if (simmode_name == kSimModeTypeMultirotor) {
+	    double recognized_simmode = false;
+            if (simmode_name == kSimModeTypeMultirotor || simmode_name == kSimModeTypeBoth) {
+	        recognized_simmode = true;
                 // create simple flight as default multirotor
                 auto simple_flight_setting = std::unique_ptr<VehicleSetting>(new VehicleSetting());
                 simple_flight_setting->vehicle_name = "SimpleFlight";
@@ -835,7 +838,8 @@ namespace airlib
                 simple_flight_setting->rc.remote_control_id = 0;
                 vehicles[simple_flight_setting->vehicle_name] = std::move(simple_flight_setting);
             }
-            else if (simmode_name == kSimModeTypeCar) {
+            if (simmode_name == kSimModeTypeCar || simmode_name == kSimModeTypeBoth) {
+		recognized_simmode = true;
                 // create PhysX as default car vehicle
                 auto physx_car_setting = std::unique_ptr<VehicleSetting>(new VehicleSetting());
                 physx_car_setting->vehicle_name = "PhysXCar";
@@ -843,13 +847,14 @@ namespace airlib
                 vehicles[physx_car_setting->vehicle_name] = std::move(physx_car_setting);
             }
             else if (simmode_name == kSimModeTypeComputerVision) {
+		recognized_simmode = true;
                 // create default computer vision vehicle
                 auto cv_setting = std::unique_ptr<VehicleSetting>(new VehicleSetting());
                 cv_setting->vehicle_name = "ComputerVision";
                 cv_setting->vehicle_type = kVehicleTypeComputerVision;
                 vehicles[cv_setting->vehicle_name] = std::move(cv_setting);
             }
-            else {
+            if(!recognized_simmode) {
                 throw std::invalid_argument(Utils::stringf(
                                                 "Unknown SimMode: %s, failed to set default vehicle settings", simmode_name.c_str())
                                                 .c_str());
@@ -1159,7 +1164,7 @@ namespace airlib
             }
 
             if (std::isnan(camera_director.follow_distance)) {
-                if (simmode_name == kSimModeTypeCar)
+                if (simmode_name == kSimModeTypeCar || simmode_name == kSimModeTypeBoth)
                     camera_director.follow_distance = -8;
                 else
                     camera_director.follow_distance = -3;
@@ -1169,7 +1174,7 @@ namespace airlib
             if (std::isnan(camera_director.position.y()))
                 camera_director.position.y() = 0;
             if (std::isnan(camera_director.position.z())) {
-                if (simmode_name == kSimModeTypeCar)
+                if (simmode_name == kSimModeTypeCar || simmode_name == kSimModeTypeBoth)
                     camera_director.position.z() = -4;
                 else
                     camera_director.position.z() = -2;
@@ -1185,7 +1190,7 @@ namespace airlib
                 clock_type = "ScalableClock";
 
                 //override if multirotor simmode with simple_flight
-                if (simmode_name == kSimModeTypeMultirotor) {
+                if (simmode_name == kSimModeTypeMultirotor || simmode_name == kSimModeTypeBoth) {
                     //TODO: this won't work if simple_flight and PX4 is combined together!
 
                     //for multirotors we select steppable fixed interval clock unless we have
@@ -1284,7 +1289,7 @@ namespace airlib
         static void createDefaultSensorSettings(const std::string& simmode_name,
                                                 std::map<std::string, std::shared_ptr<SensorSetting>>& sensors)
         {
-            if (simmode_name == kSimModeTypeMultirotor) {
+            if (simmode_name == kSimModeTypeMultirotor || simmode_name == kSimModeTypeBoth) {
                 sensors["imu"] = createSensorSetting(SensorBase::SensorType::Imu, "imu", true);
                 sensors["magnetometer"] = createSensorSetting(SensorBase::SensorType::Magnetometer, "magnetometer", true);
                 sensors["gps"] = createSensorSetting(SensorBase::SensorType::Gps, "gps", true);

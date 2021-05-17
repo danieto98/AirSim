@@ -2,24 +2,27 @@
 
 #include "CoreMinimal.h"
 
-#include "ComputerVisionPawn.h"
+#include "Vehicles/Car/CarPawn.h"
+#include "FlyingPawn.h"
 #include "common/Common.hpp"
+#include "SimMode/SimModeWorldBase.h"
+#include "api/ApiServerBase.hpp"
 #include "api/VehicleSimApiBase.hpp"
-#include "SimMode/SimModeBase.h"
-
-#include "SimModeComputerVision.generated.h"
+#include "SimModeWorldBoth.generated.h"
 
 
 UCLASS()
-class AIRSIM_API ASimModeComputerVision : public ASimModeBase
+class AIRSIM_API ASimModeWorldBoth : public ASimModeWorldBase
 {
     GENERATED_BODY()
 
-private:
-    typedef AComputerVisionPawn TVehiclePawn;
+public:
+    virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-protected:
-    virtual std::vector<std::unique_ptr<msr::airlib::ApiServerBase> > createApiServer() const override;
+protected: //overrides
+    virtual void setupClockSpeed() override;
+    virtual std::vector<std::unique_ptr<msr::airlib::ApiServerBase>> createApiServer() const override;
     virtual void getExistingVehiclePawns(TArray<AActor*>& pawns) const override;
     virtual bool isVehicleTypeSupported(const std::string& vehicle_type) const override;
     virtual std::string getVehiclePawnPathName(const AirSimSettings::VehicleSetting& vehicle_setting) const override;
@@ -30,6 +33,8 @@ protected:
         const PawnSimApi::Params& pawn_sim_api_params) const override;
     virtual msr::airlib::VehicleApiBase* getVehicleApi(const PawnSimApi::Params& pawn_sim_api_params,
         const PawnSimApi* sim_api) const override;
-    virtual bool isPaused() const override;
-    virtual void pause(bool is_paused) override;
+
+private:
+    typedef ACarPawn TCarPawn;
+    typedef AFlyingPawn TFlyingPawn;
 };

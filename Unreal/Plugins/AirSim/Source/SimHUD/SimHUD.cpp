@@ -4,6 +4,7 @@
 #include "Misc/FileHelper.h"
 
 #include "Vehicles/Multirotor/SimModeWorldMultiRotor.h"
+#include "Vehicles/Multirotor/SimModeWorldBoth.h"
 #include "Vehicles/Car/SimModeCar.h"
 #include "Vehicles/ComputerVision/SimModeComputerVision.h"
 
@@ -275,10 +276,17 @@ std::vector<ASimHUD::AirSimSettings::SubwindowSetting>& ASimHUD::getSubWindowSet
 std::string ASimHUD::getSimModeFromUser()
 {
     if (EAppReturnType::No == UAirBlueprintLib::ShowMessage(EAppMsgType::YesNo,
-        "Would you like to use car simulation? Choose no to use quadrotor simulation.",
+        "Would you like to use only car simulation? Choose no to use quadrotor/both simulation.",
         "Choose Vehicle"))
     {
-        return AirSimSettings::kSimModeTypeMultirotor;
+        if (EAppReturnType::No == UAirBlueprintLib::ShowMessage(EAppMsgType::YesNo,
+          "Would you like to simulate both quadrotor and car? Choose no to use both simulation.",
+          "Choose Vehicle"))
+      	{
+          return AirSimSettings::kSimModeTypeMultirotor;
+     	}
+      	else
+          return AirSimSettings::kSimModeTypeBoth;
     }
     else
         return AirSimSettings::kSimModeTypeCar;
@@ -304,6 +312,9 @@ void ASimHUD::createSimMode()
             FRotator::ZeroRotator, simmode_spawn_params);
     else if (simmode_name == AirSimSettings::kSimModeTypeCar)
         simmode_ = this->GetWorld()->SpawnActor<ASimModeCar>(FVector::ZeroVector,
+            FRotator::ZeroRotator, simmode_spawn_params);
+    else if (simmode_name == AirSimSettings::kSimModeTypeBoth)
+	simmode_ = this->GetWorld()->SpawnActor<ASimModeWorldBoth>(FVector::ZeroVector, 
             FRotator::ZeroRotator, simmode_spawn_params);
     else if (simmode_name == AirSimSettings::kSimModeTypeComputerVision)
         simmode_ = this->GetWorld()->SpawnActor<ASimModeComputerVision>(FVector::ZeroVector,
