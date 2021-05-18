@@ -94,8 +94,8 @@ void AirsimROSWrapper::initialize_airsim()
 	
         for (const auto& vehicle_name_ptr_pair : vehicle_name_ptr_map_)
     	{
-	    std::string curr_vehicle_type = (vehicle_name_ptr_pair.second)->vehicle_type;
-	    if(curr_vehicle_type == "simpleflight" || curr_vehicle_type == "px4multirotor" || curr_vehicle_type == "arducopter" || curr_vehicle_type == "arducoptersolo")
+	    std::string curr_vehicle_class = get_vehicle_class(*vehicle_name_ptr_pair.second);
+	    if(curr_vehicle_class == kVehicleClassDrone)
 	    {
 	    	airsim_client_drones_->enableApiControl(true, vehicle_name_ptr_pair.first); // todo expose as rosservice?
             	airsim_client_drones_->armDisarm(true, vehicle_name_ptr_pair.first); // todo exposes as rosservice?
@@ -176,6 +176,8 @@ void AirsimROSWrapper::create_ros_pubs_from_settings_json()
 
         std::unique_ptr<VehicleROS> vehicle_ros = nullptr;
 
+	std::string curr_vehicle_class = get_vehicle_class(curr_vehicle_type);
+
         if (airsim_mode_ == AIRSIM_MODE::DRONE)
         {
             vehicle_ros = std::unique_ptr<MultiRotorROS>(new MultiRotorROS());
@@ -186,7 +188,7 @@ void AirsimROSWrapper::create_ros_pubs_from_settings_json()
         }
 	else if(airsim_mode_ == AIRSIM_MODE::BOTH)
 	{
-	    if(curr_vehicle_type == "simpleflight" || curr_vehicle_type == "px4multirotor" || curr_vehicle_type == "arducopter" || curr_vehicle_type == "arducoptersolo")
+	    if(curr_vehicle_class == kVehicleClassDrone)
 	    {
 	        vehicle_ros = std::unique_ptr<MultiRotorROS>(new MultiRotorROS());
 	    }
@@ -208,7 +210,7 @@ void AirsimROSWrapper::create_ros_pubs_from_settings_json()
 
         vehicle_ros->global_gps_pub = nh_private_.advertise<sensor_msgs::NavSatFix>(curr_vehicle_name + "/global_gps", 10);
 
-        if (airsim_mode_ == AIRSIM_MODE::DRONE || (airsim_mode_ == AIRSIM_MODE::BOTH && (curr_vehicle_type == "simpleflight" || curr_vehicle_type == "px4multirotor" || curr_vehicle_type == "arducopter" || curr_vehicle_type == "arducoptersolo")))
+        if (curr_vehicle_class == kVehicleClassDrone)
         {
             auto drone = static_cast<MultiRotorROS*>(vehicle_ros.get());
 
@@ -360,8 +362,8 @@ void AirsimROSWrapper::create_ros_pubs_from_settings_json()
 	nr_vehicles = 0;
     	for (const auto& vehicle_name_ptr_pair : vehicle_name_ptr_map_)
         {
-	    std::string vtype = (vehicle_name_ptr_pair.second)->vehicle_type;
-	    if (vtype == "simpleflight" || vtype == "px4multirotor" || vtype == "arducopter" || vtype == "arducoptersolo")
+	    std::string curr_vehicle_class = get_vehicle_class(*vehicle_name_ptr_pair.second);
+	    if (curr_vehicle_class == kVehicleClassDrone)
 	    {
 	    	nr_vehicles++;
 	    }
@@ -456,8 +458,8 @@ bool AirsimROSWrapper::takeoff_all_srv_cb(airsim_ros_pkgs::Takeoff::Request& req
     {
         for(const auto& vehicle_name_ptr_pair : vehicle_name_ptr_map_)
 	{
-	    std::string curr_vehicle_type = (vehicle_name_ptr_pair.second)->vehicle_type;
-	    if(curr_vehicle_type == "simpleflight" || curr_vehicle_type == "px4multirotor" || curr_vehicle_type == "arducopter" || curr_vehicle_type == "arducoptersolo")
+	    std::string curr_vehicle_class = get_vehicle_class(*vehicle_name_ptr_pair.second);
+	    if(curr_vehicle_class == kVehicleClassDrone)
 	    {
 		static_cast<msr::airlib::MultirotorRpcLibClient*>(airsim_client_drones_.get())->takeoffAsync(20, vehicle_name_ptr_pair.first)->waitOnLastTask(); // todo value for timeout_sec?
         	// response.success =
@@ -468,8 +470,8 @@ bool AirsimROSWrapper::takeoff_all_srv_cb(airsim_ros_pkgs::Takeoff::Request& req
     {
         for(const auto& vehicle_name_ptr_pair : vehicle_name_ptr_map_)
 	{
-	    std::string curr_vehicle_type = (vehicle_name_ptr_pair.second)->vehicle_type;
-	    if(curr_vehicle_type == "simpleflight" || curr_vehicle_type == "px4multirotor" || curr_vehicle_type == "arducopter" || curr_vehicle_type == "arducoptersolo")
+	    std::string curr_vehicle_class = get_vehicle_class(*vehicle_name_ptr_pair.second);
+	    if(curr_vehicle_class == kVehicleClassDrone)
 	    {
 		static_cast<msr::airlib::MultirotorRpcLibClient*>(airsim_client_drones_.get())->takeoffAsync(20, vehicle_name_ptr_pair.first); // todo value for timeout_sec?
         	// response.success =
@@ -514,8 +516,8 @@ bool AirsimROSWrapper::land_all_srv_cb(airsim_ros_pkgs::Land::Request& request, 
     {
         for(const auto& vehicle_name_ptr_pair : vehicle_name_ptr_map_)
         {
-	    std::string curr_vehicle_type = (vehicle_name_ptr_pair.second)->vehicle_type;
-	    if(curr_vehicle_type == "simpleflight" || curr_vehicle_type == "px4multirotor" || curr_vehicle_type == "arducopter" || curr_vehicle_type == "arducoptersolo")
+	    std::string curr_vehicle_class = get_vehicle_class(*vehicle_name_ptr_pair.second);
+	    if(curr_vehicle_class == kVehicleClassDrone)
 	    {
 		static_cast<msr::airlib::MultirotorRpcLibClient*>(airsim_client_drones_.get())->landAsync(60, vehicle_name_ptr_pair.first)->waitOnLastTask();
 	    }
@@ -525,8 +527,8 @@ bool AirsimROSWrapper::land_all_srv_cb(airsim_ros_pkgs::Land::Request& request, 
     {
         for(const auto& vehicle_name_ptr_pair : vehicle_name_ptr_map_)
 	{
-	    std::string curr_vehicle_type = (vehicle_name_ptr_pair.second)->vehicle_type;
-	    if(curr_vehicle_type == "simpleflight" || curr_vehicle_type == "px4multirotor" || curr_vehicle_type == "arducopter" || curr_vehicle_type == "arducoptersolo")
+	    std::string curr_vehicle_class = get_vehicle_class(*vehicle_name_ptr_pair.second);
+	    if(curr_vehicle_class == kVehicleClassDrone)
 	    {
 		static_cast<msr::airlib::MultirotorRpcLibClient*>(airsim_client_drones_.get())->landAsync(60, vehicle_name_ptr_pair.first);
 	    }
@@ -641,8 +643,8 @@ void AirsimROSWrapper::vel_cmd_all_body_frame_cb(const airsim_ros_pkgs::VelCmd& 
     // todo expose waitOnLastTask or nah?
     for(auto& vehicle_name_ptr_pair : vehicle_name_ptr_map_)
     {
-	std::string curr_vehicle_type = (vehicle_name_ptr_pair.second)->vehicle_type;
-    	if(curr_vehicle_type == "simpleflight" || curr_vehicle_type == "px4multirotor" || curr_vehicle_type == "arducopter" || curr_vehicle_type == "arducoptersolo")
+	std::string curr_vehicle_class = get_vehicle_class(*vehicle_name_ptr_pair.second);
+	if(curr_vehicle_class == kVehicleClassDrone)
     	{
             auto drone = static_cast<MultiRotorROS*>(vehicle_name_ptr_pair.second.get());
 
@@ -703,8 +705,8 @@ void AirsimROSWrapper::vel_cmd_all_world_frame_cb(const airsim_ros_pkgs::VelCmd&
     // todo expose waitOnLastTask or nah?
     for(auto& vehicle_name_ptr_pair : vehicle_name_ptr_map_)
     {
-	std::string curr_vehicle_type = (vehicle_name_ptr_pair.second)->vehicle_type;
-	if(curr_vehicle_type == "simpleflight" || curr_vehicle_type == "px4multirotor" || curr_vehicle_type == "arducopter" || curr_vehicle_type == "arducoptersolo")
+	std::string curr_vehicle_class = get_vehicle_class(*vehicle_name_ptr_pair.second);
+	if(curr_vehicle_class == kVehicleClassDrone)
 	{
             auto drone = static_cast<MultiRotorROS*>(vehicle_name_ptr_pair.second.get());
 
@@ -931,6 +933,26 @@ airsim_ros_pkgs::Environment AirsimROSWrapper::get_environment_msg_from_airsim(c
     return env_msg;
 }
 
+std::string AirsimROSWrapper::get_vehicle_class(const VehicleROS& vehicle) const
+{
+    std::string vtype = vehicle.vehicle_type;
+    return get_vehicle_class(vtype);
+}
+
+std::string AirsimROSWrapper::get_vehicle_class(const std::string& vehicle_type) const
+{
+    typedef AirSimSettings as;
+    if (vehicle_type == as::kVehicleTypeArduCopterSolo || vehicle_type == as::kVehicleTypeSimpleFlight || vehicle_type == as::kVehicleTypeArduCopter || vehicle_type == as::kVehicleTypePX4)
+    {
+	return kVehicleClassDrone;
+    }
+    else if (vehicle_type == as::kVehicleTypePhysXCar || vehicle_type == as::kVehicleTypeArduRover)
+    {
+	return kVehicleClassCar;
+    }
+    return kVehicleClassCV;
+}
+
 sensor_msgs::MagneticField AirsimROSWrapper::get_mag_msg_from_airsim(const msr::airlib::MagnetometerBase::Output& mag_data) const
 {
     sensor_msgs::MagneticField mag_msg;
@@ -1137,9 +1159,9 @@ ros::Time AirsimROSWrapper::update_state()
         auto& vehicle_ros = vehicle_name_ptr_pair.second;
 
         // vehicle environment, we can get ambient temperature here and other truths
-	std::string curr_vehicle_type = (vehicle_name_ptr_pair.second)->vehicle_type;
         msr::airlib::Environment::State env_data;
-        if (airsim_mode_ == AIRSIM_MODE::DRONE || (airsim_mode_ == AIRSIM_MODE::BOTH && (curr_vehicle_type == "simpleflight" || curr_vehicle_type == "px4multirotor" || curr_vehicle_type == "arducopter" || curr_vehicle_type == "arducoptersolo")))
+	std::string curr_vehicle_class = get_vehicle_class(*vehicle_name_ptr_pair.second);
+	if(curr_vehicle_class == kVehicleClassDrone)
         {
 	    env_data = airsim_client_drones_->simGetGroundTruthEnvironment(vehicle_ros->vehicle_name);
             auto drone = static_cast<MultiRotorROS*>(vehicle_ros.get());
@@ -1208,18 +1230,9 @@ void AirsimROSWrapper::publish_vehicle_state()
         // simulation environment truth
         vehicle_ros->env_pub.publish(vehicle_ros->env_msg);
 
-	std::string curr_vehicle_type = (vehicle_name_ptr_pair.second)->vehicle_type;
-	std::string vtype_wide = "CV";
-	if(curr_vehicle_type == "simpleflight" || curr_vehicle_type == "px4multirotor" || curr_vehicle_type == "arducopter" || curr_vehicle_type == "arducoptersolo")
-	{
-	    vtype_wide = "Drone";
-	}
-	else if(curr_vehicle_type == "physxcar" || curr_vehicle_type == "ardurover")
-	{
-	    vtype_wide = "Car";
-	}
+	std::string curr_vehicle_class = get_vehicle_class(*vehicle_name_ptr_pair.second);
 
-        if (airsim_mode_ == AIRSIM_MODE::CAR || (airsim_mode_ == AIRSIM_MODE::BOTH && (curr_vehicle_type == "physxcar" || curr_vehicle_type == "ardurover")))
+        if (curr_vehicle_class == kVehicleClassCar)
         {
             // dashboard reading from car, RPM, gear, etc
             auto car = static_cast<CarROS*>(vehicle_ros.get());
@@ -1239,7 +1252,7 @@ void AirsimROSWrapper::publish_vehicle_state()
             {
                 case SensorBase::SensorType::Barometer:
                 {
-		    if(airsim_mode_ == AIRSIM_MODE::BOTH && vtype_wide == "Car")
+		    if(curr_vehicle_class == kVehicleClassCar)
 		    {
 			auto baro_data = airsim_client_cars_->getBarometerData(sensor_publisher.sensor_name, vehicle_ros->vehicle_name);
                     	airsim_ros_pkgs::Altimeter alt_msg = get_altimeter_msg_from_airsim(baro_data);
@@ -1257,7 +1270,7 @@ void AirsimROSWrapper::publish_vehicle_state()
                 }
                 case SensorBase::SensorType::Imu:
                 {
-		    if(airsim_mode_ == AIRSIM_MODE::BOTH && vtype_wide == "Car")
+		    if(curr_vehicle_class == kVehicleClassCar)
 		    {
 			auto imu_data = airsim_client_cars_->getImuData(sensor_publisher.sensor_name, vehicle_ros->vehicle_name);
                         sensor_msgs::Imu imu_msg = get_imu_msg_from_airsim(imu_data);
@@ -1275,7 +1288,7 @@ void AirsimROSWrapper::publish_vehicle_state()
                 }
                 case SensorBase::SensorType::Distance:
                 {
-		    if(airsim_mode_ == AIRSIM_MODE::BOTH && vtype_wide == "Car")
+		    if(curr_vehicle_class == kVehicleClassCar)
 		    {
 			auto distance_data = airsim_client_cars_->getDistanceSensorData(sensor_publisher.sensor_name, vehicle_ros->vehicle_name);
                         sensor_msgs::Range dist_msg = get_range_from_airsim(distance_data);
@@ -1293,7 +1306,7 @@ void AirsimROSWrapper::publish_vehicle_state()
                 }
                 case SensorBase::SensorType::Gps:
                 {
-		    if(airsim_mode_ == AIRSIM_MODE::BOTH && vtype_wide == "Car")
+		    if(curr_vehicle_class == kVehicleClassCar)
 		    {
 			auto gps_data = airsim_client_cars_->getGpsData(sensor_publisher.sensor_name, vehicle_ros->vehicle_name);
                         sensor_msgs::NavSatFix gps_msg = get_gps_msg_from_airsim(gps_data);
@@ -1316,7 +1329,7 @@ void AirsimROSWrapper::publish_vehicle_state()
                 }
                 case SensorBase::SensorType::Magnetometer:
                 {
-		    if(airsim_mode_ == AIRSIM_MODE::BOTH && vtype_wide == "Car")
+		    if(curr_vehicle_class == kVehicleClassCar)
 		    {
 			auto mag_data = airsim_client_cars_->getMagnetometerData(sensor_publisher.sensor_name, vehicle_ros->vehicle_name);
                         sensor_msgs::MagneticField mag_msg = get_mag_msg_from_airsim(mag_data);
@@ -1345,8 +1358,8 @@ void AirsimROSWrapper::update_commands()
     {
         auto& vehicle_ros = vehicle_name_ptr_pair.second;
 
-	std::string curr_vehicle_type = (vehicle_name_ptr_pair.second)->vehicle_type;
-        if (airsim_mode_ == AIRSIM_MODE::DRONE || (airsim_mode_ == AIRSIM_MODE::BOTH && (curr_vehicle_type == "simpleflight" || curr_vehicle_type == "px4multirotor" || curr_vehicle_type == "arducopter" || curr_vehicle_type == "arducoptersolo")))
+	std::string curr_vehicle_class = get_vehicle_class(*vehicle_name_ptr_pair.second);
+        if (curr_vehicle_class == kVehicleClassDrone)
         {
             auto drone = static_cast<MultiRotorROS*>(vehicle_ros.get());
 

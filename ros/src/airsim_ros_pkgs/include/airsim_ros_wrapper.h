@@ -146,6 +146,10 @@ public:
     bool is_used_img_timer_cb_queue_;
 
 private:
+    static constexpr char const* kVehicleClassDrone = "drone";
+    static constexpr char const* kVehicleClassCar = "car";
+    static constexpr char const* kVehicleClassCV = "cv";
+
     struct SensorPublisher
     {
         SensorBase::SensorType sensor_type;
@@ -293,6 +297,8 @@ private:
     sensor_msgs::NavSatFix get_gps_msg_from_airsim(const msr::airlib::GpsBase::Output& gps_data) const;
     sensor_msgs::MagneticField get_mag_msg_from_airsim(const msr::airlib::MagnetometerBase::Output& mag_data) const;
     airsim_ros_pkgs::Environment get_environment_msg_from_airsim(const msr::airlib::Environment::State& env_data) const;
+    std::string get_vehicle_class(const VehicleROS& vehicle) const;
+    std::string get_vehicle_class(const std::string& vehicle_type) const;
 
     // not used anymore, but can be useful in future with an unreal camera calibration environment
     void read_params_from_yaml_and_fill_cam_info_msg(const std::string& file_name, sensor_msgs::CameraInfo& cam_info) const;
