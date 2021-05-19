@@ -1,6 +1,8 @@
 ﻿cmake_minimum_required(VERSION 3.5.0)
 project(AirLib)
 
+find_package( OpenCV REQUIRED )
+
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake-modules") 
 INCLUDE("${CMAKE_CURRENT_LIST_DIR}/../cmake-modules/CommonSetup.cmake")
 CommonSetup()
@@ -28,6 +30,7 @@ add_library(${PROJECT_NAME} STATIC ${${PROJECT_NAME}_sources})
 CommonTargetLink()
 target_link_libraries(${PROJECT_NAME} ${RPC_LIB})
 target_link_libraries(${PROJECT_NAME} MavLinkCom)
+target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
 
 #string(SUBSTRING ${CMAKE_STATIC_LINKER_FLAGS} 9 -1 "BUILD_PLATFORM")
 #find_package(Threads REQUIRED)

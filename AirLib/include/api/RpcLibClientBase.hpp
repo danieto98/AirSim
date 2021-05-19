@@ -129,6 +129,9 @@ protected:
 private:
     struct impl;
     std::unique_ptr<impl> pimpl_;
+
+    std::string settings_text_;
+    std::string getSimMode();
 };
 
 }} //namespace

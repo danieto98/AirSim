@@ -14,6 +14,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <math.h>
 
 namespace msr
 {
@@ -152,6 +153,9 @@ namespace airlib
             float target_gamma = Utils::nan<float>(); //1.0f; //This would be reset to kSceneTargetGamma for scene as default
             int projection_mode = 0; // ECameraProjectionMode::Perspective
             float ortho_width = Utils::nan<float>();
+
+	    int delta_x = 0;
+	    int delta_y = 0;
         };
 
         struct NoiseSetting
@@ -1046,6 +1050,30 @@ namespace airlib
             capture_setting.width = settings_json.getInt("Width", capture_setting.width);
             capture_setting.height = settings_json.getInt("Height", capture_setting.height);
             capture_setting.fov_degrees = settings_json.getFloat("FOV_Degrees", capture_setting.fov_degrees);
+
+	    Settings json_intrinsics;
+	    if (settings_json.getChild("IntrinsicParams", json_intrinsics))
+	    {
+		float fov_rad = capture_setting.fov_degrees*M_PI/180.0;
+
+		float focal_dist_default = ((float) capture_setting.width) / (2.0*tan(fov_rad/2.0));
+		float principal_pt_x_default = ((float) capture_setting.width) / 2.0;
+		float principal_pt_y_default = ((float) capture_setting.height) / 2.0;
+
+		float focal_dist = json_intrinsics.getFloat("FocalDistance", focal_dist_default);
+		float principal_pt_x = json_intrinsics.getFloat("PrincipalPtX", principal_pt_x_default);
+		float principal_pt_y = json_intrinsics.getFloat("PrincipalPtY", principal_pt_y_default);
+
+		capture_setting.delta_x = principal_pt_x - principal_pt_x_default;
+		capture_setting.delta_y = principal_pt_y - principal_pt_y_default;
+
+		capture_setting.width = capture_setting.width + 2*capture_setting.delta_x;
+		capture_setting.height = capture_setting.height + 2*capture_setting.delta_y;
+
+		float fov_rad_new = 2*atan(((float) capture_setting.width)/(2.0*focal_dist));
+		capture_setting.fov_degrees = fov_rad_new*180.0/M_PI;
+	    }
+
             capture_setting.auto_exposure_speed = settings_json.getFloat("AutoExposureSpeed", capture_setting.auto_exposure_speed);
             capture_setting.auto_exposure_bias = settings_json.getFloat("AutoExposureBias", capture_setting.auto_exposure_bias);
             capture_setting.auto_exposure_max_brightness = settings_json.getFloat("AutoExposureMaxBrightness", capture_setting.auto_exposure_max_brightness);

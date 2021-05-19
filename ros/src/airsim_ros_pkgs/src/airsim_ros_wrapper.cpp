@@ -251,7 +251,7 @@ void AirsimROSWrapper::create_ros_pubs_from_settings_json()
             for (const auto& curr_capture_elem : camera_setting.capture_settings)
             {
                 auto& capture_setting = curr_capture_elem.second;
-
+		
                 // todo why does AirSimSettings::loadCaptureSettings calls AirSimSettings::initializeCaptureSettings()
                 // which initializes default capture settings for _all_ NINE msr::airlib::ImageCaptureBase::ImageType
                 if ( !(std::isnan(capture_setting.fov_degrees)) )
@@ -1639,8 +1639,9 @@ sensor_msgs::CameraInfo AirsimROSWrapper::generate_cam_info(const std::string& c
 {
     sensor_msgs::CameraInfo cam_info_msg;
     cam_info_msg.header.frame_id = camera_name + "_optical";
-    cam_info_msg.height = capture_setting.height;
-    cam_info_msg.width = capture_setting.width;
+    cam_info_msg.height = capture_setting.height - 2*capture_setting.delta_y;
+    cam_info_msg.width = capture_setting.width - 2*capture_setting.delta_x;
+
     float f_x = (capture_setting.width / 2.0) / tan(math_common::deg2rad(capture_setting.fov_degrees / 2.0));
     // todo focal length in Y direction should be same as X it seems. this can change in future a scene capture component which exactly correponds to a cine camera
     // float f_y = (capture_setting.height / 2.0) / tan(math_common::deg2rad(fov_degrees / 2.0));

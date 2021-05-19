@@ -14,6 +14,7 @@
 #include <functional>
 #include <vector>
 #include <thread>
+#include <stdlib.h>
 STRICT_MODE_OFF
 
 #ifndef RPCLIB_MSGPACK
@@ -23,6 +24,8 @@ STRICT_MODE_OFF
 #ifdef nil
 #undef nil
 #endif // nil
+
+#include <opencv2/core.hpp>
 
 #include "common/common_utils/WindowsApisCommonPre.hpp"
 #undef FLOAT
@@ -35,6 +38,7 @@ STRICT_MODE_OFF
 #include "common/common_utils/WindowsApisCommonPost.hpp"
 
 #include "api/RpcLibAdaptorsBase.hpp"
+#include "common/AirSimSettings.hpp"
 
 
 STRICT_MODE_ON
@@ -61,6 +65,9 @@ typedef msr::airlib_rpclib::RpcLibAdaptorsBase RpcLibAdaptorsBase;
 RpcLibClientBase::RpcLibClientBase(const string&  ip_address, uint16_t port, float timeout_sec)
 {
     pimpl_.reset(new impl(ip_address, port, timeout_sec));
+    settings_text_ = getSettingsString();
+    AirSimSettings::initializeSettings(settings_text_);
+    AirSimSettings::singleton().load(std::bind(&RpcLibClientBase::getSimMode, this));
 }
 
 RpcLibClientBase::~RpcLibClientBase()
@@ -225,7 +232,61 @@ vector<ImageCaptureBase::ImageResponse> RpcLibClientBase::simGetImages(vector<Im
         RpcLibAdaptorsBase::ImageRequest::from(request), vehicle_name)
         .as<vector<RpcLibAdaptorsBase::ImageResponse>>();
 
-    return RpcLibAdaptorsBase::ImageResponse::to(response_adaptor);
+    vector<ImageCaptureBase::ImageResponse> images_response = RpcLibAdaptorsBase::ImageResponse::to(response_adaptor);
+
+    for (auto& req : request)
+    {
+	// Use camera name and image type: req.camera_name, req.image_type
+        // Use vehicle name: vehicle_name
+        // Get settings for delta_x and delta_y for this camera in this vehicle
+	auto capture_settings = AirSimSettings::singleton().vehicles.at(vehicle_name)->cameras.at(req.camera_name).capture_settings.at((int) req.image_type);
+        int delta_x = capture_settings.delta_x;
+        int delta_y = capture_settings.delta_y;
+
+	// If either delta_x or delta_y are non-zero
+	if (delta_x != 0 || delta_y != 0)
+	{
+	    // Find response corresponding to request
+	    for(auto& resp : images_response)
+	    {
+		if (resp.camera_name == req.camera_name)
+		{
+		    // Get image data (resp.image_data_uint8) in response, and together with resp.width and resp.height transform into OpenCV
+		    int width = resp.width;
+		    int height = resp.height;
+		    cv::Mat mat(height, width, CV_8UC3, cv::Scalar(0, 0, 0));
+		    for (int row = 0; row < height; row++)
+			for (int col = 0; col < width; col++)
+			    mat.at<cv::Vec3b>(row, col) = cv::Vec3b( 
+				resp.image_data_uint8[row*width*3 + 3*col + 0], 
+				resp.image_data_uint8[row*width*3 + 3*col + 1],  
+				resp.image_data_uint8[row*width*3 + 3*col + 2]);		
+		    // Perform cropping according to deltas
+		    int new_height = height-2*abs(delta_y);
+		    int new_width = width-2*abs(delta_x);
+		    cv::Rect rect(delta_x > 0 ? 0 : -2*delta_x, delta_y > 0 ? 0 : -2*delta_y, new_width, new_height);
+		    mat = mat(rect);
+		    // Copy back image data into response
+		    resp.image_data_uint8.resize(new_width*new_height*3);
+		    for (int row = 0; row < new_height; row++)
+		    {
+			for (int col = 0; col < new_width; col++)
+			{
+			    resp.image_data_uint8[row*new_width*3 + 3*col + 0] = mat.at<cv::Vec3b>(row, col)[0];
+			    resp.image_data_uint8[row*new_width*3 + 3*col + 1] = mat.at<cv::Vec3b>(row, col)[1];
+			    resp.image_data_uint8[row*new_width*3 + 3*col + 2] = mat.at<cv::Vec3b>(row, col)[2];
+			}
+		    }
+    		    // Change width, height in response
+		    resp.width = new_width;
+		    resp.height = new_height;
+		    break;
+		}
+	    }
+	}
+    }
+
+    return images_response;
 }
 vector<uint8_t> RpcLibClientBase::simGetImage(const std::string& camera_name, ImageCaptureBase::ImageType type, const std::string& vehicle_name)
 {
@@ -482,6 +543,12 @@ void* RpcLibClientBase::getClient()
 const void* RpcLibClientBase::getClient() const
 {
     return &pimpl_->client;
+}
+
+std::string RpcLibClientBase::getSimMode()
+{
+    Settings& settings_json = Settings::loadJSonString(settings_text_);
+    return settings_json.getString("SimMode", "");
 }
 
 }} //namespace
