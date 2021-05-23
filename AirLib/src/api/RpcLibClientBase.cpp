@@ -311,7 +311,7 @@ vector<ImageCaptureBase::ImageResponse> RpcLibClientBase::simGetImages(vector<Im
     return images_response;
 }
 
-// TODO: this defaults to compressed image data, handle this and pixels_as_float
+// TODO: handle pixels_as_float
 vector<uint8_t> RpcLibClientBase::simGetImage(const std::string& camera_name, ImageCaptureBase::ImageType type, const std::string& vehicle_name)
 {
     vector<uint8_t> result = pimpl_->client.call("simGetImage", camera_name, type, vehicle_name).as<vector<uint8_t>>();
@@ -320,6 +320,41 @@ vector<uint8_t> RpcLibClientBase::simGetImage(const std::string& camera_name, Im
         // rpclib has a bug with serializing empty vectors, so we return a 1 byte vector instead.
         result.clear();
     }
+    else
+    {
+        // Use camera name and image type: camera_name, type
+        // Use vehicle name: vehicle_name
+        // Get settings for delta_x and delta_y for this camera in this vehicle
+        auto capture_settings = AirSimSettings::singleton().vehicles.at(vehicle_name)->cameras.at(camera_name).capture_settings.at((int) type);
+        int delta_x = capture_settings.delta_x;
+        int delta_y = capture_settings.delta_y;
+
+        // If either delta_x or delta_y are non-zero
+        if (delta_x != 0 || delta_y != 0)
+        {
+            // Decompress result image
+            cv::Mat mat = cv::imdecode(result, cv::IMREAD_COLOR);
+
+            // Perform cropping according to deltas
+            int new_height = mat.rows-2*abs(delta_y);
+            int new_width = mat.cols-2*abs(delta_x);
+            cv::Rect rect(delta_x > 0 ? 0 : -2*delta_x, delta_y > 0 ? 0 : -2*delta_y, new_width, new_height);
+            mat = mat(rect);
+
+            // Copy back image data into response
+            result.clear();
+            std::vector<unsigned char> vec;
+
+            cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
+            lodepng::encode(vec, mat.data, mat.cols, mat.rows, LodePNGColorType::LCT_RGB);
+
+            // Replace above block with imencode if linking issues are sorted out
+            // cv::imencode(".png", mat, vec);
+
+            result = std::vector<uint8_t>(vec);
+        }
+    }
+
     return result;
 }
 
