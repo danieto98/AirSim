@@ -801,7 +801,7 @@ void UAirBlueprintLib::CompressImageArray(int32 width, int32 height, const TArra
     FMemory::Memcpy(ThumbnailByteArray.GetData(), MutableSrcData.GetData(), MemorySize);
 
     // Compress data - convert into a .png
-    CompressUsingImageWrapper(ThumbnailByteArray, width, height, dest);;
+    CompressUsingImageWrapper(ThumbnailByteArray, width, height, dest);
 }
 
 bool UAirBlueprintLib::CompressUsingImageWrapper(const TArray<uint8>& uncompressed, const int32 width, const int32 height, TArray<uint8>& compressed)

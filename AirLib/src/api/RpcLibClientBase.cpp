@@ -25,8 +25,6 @@ STRICT_MODE_OFF
 #undef nil
 #endif // nil
 
-#include <opencv2/core.hpp>
-
 #include "common/common_utils/WindowsApisCommonPre.hpp"
 #undef FLOAT
 #undef check
@@ -39,13 +37,12 @@ STRICT_MODE_OFF
 
 #include "api/RpcLibAdaptorsBase.hpp"
 #include "common/AirSimSettings.hpp"
-
+#include "common/lodepng.hpp"
 
 STRICT_MODE_ON
 #ifdef _MSC_VER
 __pragma(warning( disable : 4239))
 #endif
-
 
 namespace msr { namespace airlib {
 
@@ -226,6 +223,7 @@ void RpcLibClientBase::simSetTraceLine(const std::vector<float>& color_rgba, flo
     pimpl_->client.call("simSetTraceLine", color_rgba, thickness, vehicle_name);
 }
 
+// TODO: Handle pixels_as_float
 vector<ImageCaptureBase::ImageResponse> RpcLibClientBase::simGetImages(vector<ImageCaptureBase::ImageRequest> request, const std::string& vehicle_name)
 {
     const auto& response_adaptor = pimpl_->client.call("simGetImages",
@@ -236,61 +234,88 @@ vector<ImageCaptureBase::ImageResponse> RpcLibClientBase::simGetImages(vector<Im
 
     for (auto& req : request)
     {
-	// Use camera name and image type: req.camera_name, req.image_type
+        // Use camera name and image type: req.camera_name, req.image_type
         // Use vehicle name: vehicle_name
         // Get settings for delta_x and delta_y for this camera in this vehicle
-	auto capture_settings = AirSimSettings::singleton().vehicles.at(vehicle_name)->cameras.at(req.camera_name).capture_settings.at((int) req.image_type);
+        auto capture_settings = AirSimSettings::singleton().vehicles.at(vehicle_name)->cameras.at(req.camera_name).capture_settings.at((int) req.image_type);
         int delta_x = capture_settings.delta_x;
         int delta_y = capture_settings.delta_y;
 
-	// If either delta_x or delta_y are non-zero
-	if (delta_x != 0 || delta_y != 0)
-	{
-	    // Find response corresponding to request
-	    for(auto& resp : images_response)
-	    {
-		if (resp.camera_name == req.camera_name)
-		{
-		    // Get image data (resp.image_data_uint8) in response, and together with resp.width and resp.height transform into OpenCV
-		    int width = resp.width;
-		    int height = resp.height;
-		    cv::Mat mat(height, width, CV_8UC3, cv::Scalar(0, 0, 0));
-		    for (int row = 0; row < height; row++)
-			for (int col = 0; col < width; col++)
-			    mat.at<cv::Vec3b>(row, col) = cv::Vec3b( 
-				resp.image_data_uint8[row*width*3 + 3*col + 0], 
-				resp.image_data_uint8[row*width*3 + 3*col + 1],  
-				resp.image_data_uint8[row*width*3 + 3*col + 2]);		
-		    // Perform cropping according to deltas
-		    int new_height = height-2*abs(delta_y);
-		    int new_width = width-2*abs(delta_x);
-		    cv::Rect rect(delta_x > 0 ? 0 : -2*delta_x, delta_y > 0 ? 0 : -2*delta_y, new_width, new_height);
-		    mat = mat(rect);
-		    // Copy back image data into response
-		    resp.image_data_uint8.resize(new_width*new_height*3);
-		    for (int row = 0; row < new_height; row++)
-		    {
-			for (int col = 0; col < new_width; col++)
-			{
-			    resp.image_data_uint8[row*new_width*3 + 3*col + 0] = mat.at<cv::Vec3b>(row, col)[0];
-			    resp.image_data_uint8[row*new_width*3 + 3*col + 1] = mat.at<cv::Vec3b>(row, col)[1];
-			    resp.image_data_uint8[row*new_width*3 + 3*col + 2] = mat.at<cv::Vec3b>(row, col)[2];
-			}
-		    }
-    		    // Change width, height in response
-		    resp.width = new_width;
-		    resp.height = new_height;
-		    break;
-		}
-	    }
-	}
+        // If either delta_x or delta_y are non-zero
+        if (delta_x != 0 || delta_y != 0)
+        {
+            // Find response corresponding to request
+            for(auto& resp : images_response)
+            {
+                if (resp.camera_name == req.camera_name)
+                {
+                    // Get image data (resp.image_data_uint8) in response, and together with resp.width and resp.height transform into OpenCV
+                    int width = resp.width;
+                    int height = resp.height;
+                    cv::Mat mat;
+                    if (req.compress)
+                    {
+                        mat = cv::imdecode(resp.image_data_uint8, cv::IMREAD_COLOR);
+                    }
+                    else
+                    {
+                        mat = cv::Mat(height, width, CV_8UC3, cv::Scalar(0, 0, 0));
+                        for (int row = 0; row < height; row++)
+                            for (int col = 0; col < width; col++)
+                                mat.at<cv::Vec3b>(row, col) = cv::Vec3b(
+                                    resp.image_data_uint8[row*width*3 + 3*col + 0],
+                                    resp.image_data_uint8[row*width*3 + 3*col + 1],
+                                    resp.image_data_uint8[row*width*3 + 3*col + 2]);
+                    }
+                    // Perform cropping according to deltas
+                    int new_height = height-2*abs(delta_y);
+                    int new_width = width-2*abs(delta_x);
+                    cv::Rect rect(delta_x > 0 ? 0 : -2*delta_x, delta_y > 0 ? 0 : -2*delta_y, new_width, new_height);
+                    mat = mat(rect);
+                    // Copy back image data into response
+                    if(req.compress)
+                    {
+                        resp.image_data_uint8.clear();
+                        std::vector<unsigned char> vec;
+
+                        cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
+                        lodepng::encode(vec, mat.data, mat.cols, mat.rows, LodePNGColorType::LCT_RGB);
+
+                        // Replace above block with imencode if linking issues are sorted out
+                        // cv::imencode(".png", mat, vec);
+
+                        resp.image_data_uint8 = std::vector<uint8_t>(vec);
+                    }
+                    else
+                    {
+                        resp.image_data_uint8.resize(new_width*new_height*3);
+                        for (int row = 0; row < new_height; row++)
+                        {
+                            for (int col = 0; col < new_width; col++)
+                            {
+                                resp.image_data_uint8[row*new_width*3 + 3*col + 0] = mat.at<cv::Vec3b>(row, col)[0];
+                                resp.image_data_uint8[row*new_width*3 + 3*col + 1] = mat.at<cv::Vec3b>(row, col)[1];
+                                resp.image_data_uint8[row*new_width*3 + 3*col + 2] = mat.at<cv::Vec3b>(row, col)[2];
+                            }
+                        }
+                    }
+                        // Change width, height in response
+                    resp.width = new_width;
+                    resp.height = new_height;
+                    break;
+                }
+            }
+        }
     }
 
     return images_response;
 }
+
+// TODO: this defaults to compressed image data, handle this and pixels_as_float
 vector<uint8_t> RpcLibClientBase::simGetImage(const std::string& camera_name, ImageCaptureBase::ImageType type, const std::string& vehicle_name)
 {
     vector<uint8_t> result = pimpl_->client.call("simGetImage", camera_name, type, vehicle_name).as<vector<uint8_t>>();
+
     if (result.size() == 1) {
         // rpclib has a bug with serializing empty vectors, so we return a 1 byte vector instead.
         result.clear();

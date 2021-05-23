@@ -14,6 +14,7 @@ include_directories(
   ${AIRSIM_ROOT}/AirLib/include
   ${AIRSIM_ROOT}/MavLinkCom/include
   ${RPC_LIB_INCLUDES}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 file(GLOB_RECURSE ${PROJECT_NAME}_sources 
@@ -28,6 +29,7 @@ file(GLOB_RECURSE ${PROJECT_NAME}_sources
 add_library(${PROJECT_NAME} STATIC ${${PROJECT_NAME}_sources})
 
 CommonTargetLink()
+
 target_link_libraries(${PROJECT_NAME} ${RPC_LIB})
 target_link_libraries(${PROJECT_NAME} MavLinkCom)
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
